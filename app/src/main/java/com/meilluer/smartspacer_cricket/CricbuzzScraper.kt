@@ -116,8 +116,13 @@ class CricbuzzScraper {
         val matchDetails = listOfNotNull(seriesName, matchDesc).joinToString(" • ").ifBlank { null }
         val matchState = info.optString("state").ifBlank { info.optString("stateTitle") }.ifBlank { null }
         val startTimeMillis = info.optLong("startDate", -1L).takeIf { it > 0L }
-        val crr = calculateCurrentRunRate(team1ScoreObject, team2ScoreObject)
+        val crr = calculateCurrentRunRate(currentBatTeamId, team1Id, team2Id, team1ScoreObject, team2ScoreObject)
         val rr = calculateRequiredRunRate(info, team1ScoreObject, team2ScoreObject)
+        
+        val secondInningsStarted = hasSecondInningsStarted(team1ScoreObject, team2ScoreObject)
+        val isFinished = matchState?.lowercase()?.contains("complete") == true ||
+                status?.lowercase()?.contains("won") == true ||
+                matchState?.lowercase()?.contains("abandoned") == true
 
         return MatchInfo(
             matchId = matchId,
@@ -134,8 +139,32 @@ class CricbuzzScraper {
             matchState = matchState,
             startTimeMillis = startTimeMillis,
             crr = crr,
-            rr = rr
+            rr = rr,
+            second_innings = secondInningsStarted && !isFinished
         )
+    }
+
+    private fun hasSecondInningsStarted(
+        team1ScoreObject: JSONObject?,
+        team2ScoreObject: JSONObject?
+    ): Boolean {
+        val allInnings = mutableListOf<JSONObject>()
+        
+        team1ScoreObject?.let { obj ->
+            val keys = obj.keys()
+            while (keys.hasNext()) {
+                obj.optJSONObject(keys.next())?.let { allInnings.add(it) }
+            }
+        }
+        
+        team2ScoreObject?.let { obj ->
+            val keys = obj.keys()
+            while (keys.hasNext()) {
+                obj.optJSONObject(keys.next())?.let { allInnings.add(it) }
+            }
+        }
+        
+        return allInnings.any { it.optInt("inningsId", 0) >= 2 }
     }
 
     private fun extractMatchesArrayJson(normalizedHtml: String): String? {
@@ -215,33 +244,29 @@ class CricbuzzScraper {
     }
 
     private fun extractLatestOvers(teamScoreObject: JSONObject): String? {
-        val innings = buildList {
-            val keys = teamScoreObject.keys()
-            while (keys.hasNext()) {
-                val key = keys.next()
-                val inningsObject = teamScoreObject.optJSONObject(key) ?: continue
-                val order = key.filter(Char::isDigit).toIntOrNull() ?: Int.MAX_VALUE
-                add(order to inningsObject)
-            }
-        }.sortedBy { it.first }
-
-        val latestOvers = innings.lastOrNull()?.second?.optDouble("overs", Double.NaN) ?: Double.NaN
+        val latestInnings = extractLatestInnings(teamScoreObject)
+        val latestOvers = latestInnings?.overs ?: Double.NaN
         return if (latestOvers.isNaN()) null else latestOvers.toString()
     }
 
     private fun calculateCurrentRunRate(
+        currentBatTeamId: Int,
+        team1Id: Int,
+        team2Id: Int,
         team1ScoreObject: JSONObject?,
         team2ScoreObject: JSONObject?
     ): String? {
-        val firstInnings = listOfNotNull(
-            extractEarliestInnings(team1ScoreObject),
-            extractEarliestInnings(team2ScoreObject)
-        ).minByOrNull { it.inningsId } ?: return null
+        val scoreObject = when (currentBatTeamId) {
+            team1Id -> team1ScoreObject
+            team2Id -> team2ScoreObject
+            else -> team2ScoreObject ?: team1ScoreObject
+        } ?: return null
 
-        val balls = oversToBalls(firstInnings.overs) ?: return null
+        val latestInnings = extractLatestInnings(scoreObject) ?: return null
+        val balls = oversToBalls(latestInnings.overs) ?: return null
         if (balls <= 0) return null
 
-        return formatRate(firstInnings.runs * 6.0 / balls)
+        return formatRate(latestInnings.runs * 6.0 / balls)
     }
 
     private fun calculateRequiredRunRate(
@@ -293,6 +318,25 @@ class CricbuzzScraper {
                 )
             }
         }.minByOrNull { it.inningsId }
+    }
+
+    private fun extractLatestInnings(teamScoreObject: JSONObject?): ParsedInnings? {
+        if (teamScoreObject == null) return null
+
+        return buildList {
+            val keys = teamScoreObject.keys()
+            while (keys.hasNext()) {
+                val key = keys.next()
+                val inningsObject = teamScoreObject.optJSONObject(key) ?: continue
+                add(
+                    ParsedInnings(
+                        inningsId = inningsObject.optInt("inningsId", 0),
+                        runs = inningsObject.optInt("runs", 0),
+                        overs = inningsObject.optDouble("overs", Double.NaN)
+                    )
+                )
+            }
+        }.maxByOrNull { it.inningsId }
     }
 
     private fun oversToBalls(overs: Double): Int? {

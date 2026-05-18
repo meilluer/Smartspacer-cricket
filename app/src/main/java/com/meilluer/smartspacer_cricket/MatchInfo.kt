@@ -15,5 +15,6 @@ data class MatchInfo(
     val matchState: String? = null,
     val startTimeMillis: Long? = null,
     val crr: String? = null,
-    val rr: String? = null
+    val rr: String? = null,
+    val second_innings: Boolean = false
 )

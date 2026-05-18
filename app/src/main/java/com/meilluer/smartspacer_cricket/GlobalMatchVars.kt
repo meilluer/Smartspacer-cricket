@@ -12,6 +12,7 @@ var away_overs: String = ""
 var status: String = ""
 var CRR: String = ""
 var RR: String = ""
+var second_innings: Boolean = false
 var dismiss_flag: Boolean = false
 
 object GlobalMatchVarsStore {
@@ -25,6 +26,7 @@ object GlobalMatchVarsStore {
     private const val KEY_STATUS = "status"
     private const val KEY_CRR = "crr"
     private const val KEY_RR = "rr"
+    private const val KEY_SECOND_INNINGS = "second_innings"
     private const val KEY_DISMISS_FLAG = "dismiss_flag"
 
     fun hydrate(context: Context) {
@@ -38,12 +40,13 @@ object GlobalMatchVarsStore {
         status = prefs.getString(KEY_STATUS, "").orEmpty()
         CRR = prefs.getString(KEY_CRR, "").orEmpty()
         RR = prefs.getString(KEY_RR, "").orEmpty()
+        second_innings = prefs.getBoolean(KEY_SECOND_INNINGS, false)
         dismiss_flag = prefs.getBoolean(KEY_DISMISS_FLAG, false)
     }
 
     fun update(context: Context, match: MatchInfo?, favoriteTeams: Set<String>) {
         if (match == null) {
-            setValues(context, "", "", "", "", "", "", "", "", "")
+            setValues(context, "", "", "", "", "", "", "", "", "", false)
             return
         }
 
@@ -64,7 +67,8 @@ object GlobalMatchVarsStore {
             newAwayOvers = if (followedIsTeam1) match.team2Overs.orEmpty() else match.team1Overs.orEmpty(),
             newStatus = match.status.orEmpty(),
             newCRR = match.crr.orEmpty(),
-            newRR = match.rr.orEmpty()
+            newRR = match.rr.orEmpty(),
+            newSecondInnings = match.second_innings
         )
     }
 
@@ -78,7 +82,8 @@ object GlobalMatchVarsStore {
         newAwayOvers: String,
         newStatus: String,
         newCRR: String,
-        newRR: String
+        newRR: String,
+        newSecondInnings: Boolean
     ) {
         home_team = newHomeTeam
         away_team = newAwayTeam
@@ -89,6 +94,7 @@ object GlobalMatchVarsStore {
         status = newStatus
         CRR = newCRR
         RR = newRR
+        second_innings = newSecondInnings
 
         context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
             .edit()
@@ -101,6 +107,7 @@ object GlobalMatchVarsStore {
             .putString(KEY_STATUS, status)
             .putString(KEY_CRR, CRR)
             .putString(KEY_RR, RR)
+            .putBoolean(KEY_SECOND_INNINGS, second_innings)
             .putBoolean(KEY_DISMISS_FLAG, dismiss_flag)
             .apply()
 

@@ -32,6 +32,7 @@ object MatchCache {
                     put("startTimeMillis", match.startTimeMillis)
                     put("crr", match.crr)
                     put("rr", match.rr)
+                    put("second_innings", match.second_innings)
                 }
             )
         }
@@ -65,7 +66,8 @@ object MatchCache {
                     matchState = item.optString("matchState").ifBlank { null },
                     startTimeMillis = item.optLong("startTimeMillis", -1L).takeIf { it > 0L },
                     crr = item.optString("crr").ifBlank { null },
-                    rr = item.optString("rr").ifBlank { null }
+                    rr = item.optString("rr").ifBlank { null },
+                    second_innings = item.optBoolean("second_innings", false)
                 )
             )
         }

@@ -11,6 +11,18 @@ import android.graphics.drawable.Icon as AndroidIcon
 
 class Target: SmartspacerTargetProvider() {
     override fun getSmartspaceTargets(smartspacerId: String): List<SmartspaceTarget> {
+        val homeOversVal = home_overs.toDoubleOrNull() ?: 0.0
+        val awayOversVal = away_overs.toDoubleOrNull() ?: 0.0
+        
+        var subtitle = status
+        if (!second_innings && (homeOversVal >= 2.0 || awayOversVal >= 2.0)) {
+            if (CRR.isNotBlank()) {
+                subtitle = "CRR: $CRR"
+            }
+        }
+if(second_innings==true){
+    subtitle = status
+}
         if (dismiss_flag) {
             return emptyList()
         }
@@ -21,7 +33,7 @@ class Target: SmartspacerTargetProvider() {
                 id = "notify",
                 componentName = ComponentName(context!!, Target::class.java),
                 title = Text("$home_team $home_score ( $home_overs ) - $away_score ( $away_overs ) $away_team"),
-                subtitle = Text(status),
+                subtitle = Text(subtitle),
                 icon = Icon(AndroidIcon.createWithResource(context, R.drawable.cricket_icon_icons_com_53564__1_)),
             ).create()
         )

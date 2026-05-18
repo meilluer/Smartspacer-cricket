@@ -26,8 +26,8 @@
             </intent-filter>
         </activity>
 <provider
-    android:authorities="${applicationId}.target.CricketAlarmReceiver"
-    android:name=".MainActivity"
+    android:authorities="${applicationId}.target"
+    android:name=".Target"
     android:exported="true"
     android:permission="com.kieronquinn.app.smartspacer.permission.ACCESS_SMARTSPACER_TARGETS">
         <intent-filter>

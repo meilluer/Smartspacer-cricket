@@ -22,12 +22,16 @@ object MatchCache {
                     put("team2", match.team2)
                     put("team1Score", match.team1Score)
                     put("team2Score", match.team2Score)
+                    put("team1Overs", match.team1Overs)
+                    put("team2Overs", match.team2Overs)
                     put("overs", match.overs)
                     put("runRate", match.runRate)
                     put("status", match.status)
                     put("matchDetails", match.matchDetails)
                     put("matchState", match.matchState)
                     put("startTimeMillis", match.startTimeMillis)
+                    put("crr", match.crr)
+                    put("rr", match.rr)
                 }
             )
         }
@@ -52,12 +56,16 @@ object MatchCache {
                     team2 = item.optString("team2"),
                     team1Score = item.optString("team1Score").ifBlank { null },
                     team2Score = item.optString("team2Score").ifBlank { null },
+                    team1Overs = item.optString("team1Overs").ifBlank { null },
+                    team2Overs = item.optString("team2Overs").ifBlank { null },
                     overs = item.optString("overs").ifBlank { null },
                     runRate = item.optString("runRate").ifBlank { null },
                     status = item.optString("status").ifBlank { null },
                     matchDetails = item.optString("matchDetails").ifBlank { null },
                     matchState = item.optString("matchState").ifBlank { null },
-                    startTimeMillis = item.optLong("startTimeMillis", -1L).takeIf { it > 0L }
+                    startTimeMillis = item.optLong("startTimeMillis", -1L).takeIf { it > 0L },
+                    crr = item.optString("crr").ifBlank { null },
+                    rr = item.optString("rr").ifBlank { null }
                 )
             )
         }

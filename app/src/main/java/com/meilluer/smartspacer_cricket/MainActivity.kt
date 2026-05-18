@@ -53,8 +53,10 @@ class MainActivity : AppCompatActivity() {
         setContentView(R.layout.activity_main)
 
         loadSettings()
+        GlobalMatchVarsStore.hydrate(this)
         setupUI()
         allMatches = MatchCache.load(this)
+        syncGlobalMatchVars()
         updateDisplay("Fetching Cricbuzz scores...")
         maybeRequestExactAlarmPermission()
         CricketScheduler.initialize(this, allMatches)
@@ -124,12 +126,16 @@ class MainActivity : AppCompatActivity() {
                 scraper.fetchLiveMatches()
             }
             allMatches = result.matches
-            if (result.matches.isNotEmpty()) {
+            val matchesForScheduling = if (result.matches.isNotEmpty()) {
                 MatchCache.save(this@MainActivity, result.matches)
+                result.matches
+            } else {
+                MatchCache.load(this@MainActivity)
             }
+            syncGlobalMatchVars(matchesForScheduling)
             CricketScheduler.rebuildSchedules(
                 context = this@MainActivity,
-                matches = if (result.matches.isNotEmpty()) result.matches else MatchCache.load(this@MainActivity),
+                matches = matchesForScheduling,
                 favoriteTeams = favoriteTeams,
                 intervalMinutes = refreshIntervalMinutes
             )
@@ -204,6 +210,7 @@ class MainActivity : AppCompatActivity() {
             }
             .setPositiveButton("OK") { _, _ ->
                 saveSettings()
+                syncGlobalMatchVars()
                 updateDisplay()
                 CricketScheduler.initialize(this, allMatches)
             }
@@ -247,5 +254,10 @@ class MainActivity : AppCompatActivity() {
             }
             .setNegativeButton("Not now", null)
             .show()
+    }
+
+    private fun syncGlobalMatchVars(matches: List<MatchInfo> = allMatches) {
+        val selectedMatch = TrackedMatchSelector.selectPrimaryMatch(matches, favoriteTeams)
+        GlobalMatchVarsStore.update(this, selectedMatch, favoriteTeams)
     }
 }

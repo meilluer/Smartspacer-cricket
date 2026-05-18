@@ -5,6 +5,7 @@ import okhttp3.Request
 import org.json.JSONArray
 import org.json.JSONObject
 import java.io.IOException
+import java.util.Locale
 import java.util.concurrent.TimeUnit
 
 class CricbuzzScraper {
@@ -115,6 +116,8 @@ class CricbuzzScraper {
         val matchDetails = listOfNotNull(seriesName, matchDesc).joinToString(" • ").ifBlank { null }
         val matchState = info.optString("state").ifBlank { info.optString("stateTitle") }.ifBlank { null }
         val startTimeMillis = info.optLong("startDate", -1L).takeIf { it > 0L }
+        val crr = calculateCurrentRunRate(team1ScoreObject, team2ScoreObject)
+        val rr = calculateRequiredRunRate(info, team1ScoreObject, team2ScoreObject)
 
         return MatchInfo(
             matchId = matchId,
@@ -122,12 +125,16 @@ class CricbuzzScraper {
             team2 = team2,
             team1Score = team1Score,
             team2Score = team2Score,
+            team1Overs = team1Overs,
+            team2Overs = team2Overs,
             overs = activeOvers,
             runRate = runRate,
             status = status,
             matchDetails = matchDetails,
             matchState = matchState,
-            startTimeMillis = startTimeMillis
+            startTimeMillis = startTimeMillis,
+            crr = crr,
+            rr = rr
         )
     }
 
@@ -221,4 +228,87 @@ class CricbuzzScraper {
         val latestOvers = innings.lastOrNull()?.second?.optDouble("overs", Double.NaN) ?: Double.NaN
         return if (latestOvers.isNaN()) null else latestOvers.toString()
     }
+
+    private fun calculateCurrentRunRate(
+        team1ScoreObject: JSONObject?,
+        team2ScoreObject: JSONObject?
+    ): String? {
+        val firstInnings = listOfNotNull(
+            extractEarliestInnings(team1ScoreObject),
+            extractEarliestInnings(team2ScoreObject)
+        ).minByOrNull { it.inningsId } ?: return null
+
+        val balls = oversToBalls(firstInnings.overs) ?: return null
+        if (balls <= 0) return null
+
+        return formatRate(firstInnings.runs * 6.0 / balls)
+    }
+
+    private fun calculateRequiredRunRate(
+        info: JSONObject,
+        team1ScoreObject: JSONObject?,
+        team2ScoreObject: JSONObject?
+    ): String? {
+        val maxOvers = when (info.optString("matchFormat").uppercase(Locale.getDefault())) {
+            "T20" -> 20
+            "ODI" -> 50
+            "T10" -> 10
+            else -> return null
+        }
+
+        val team1First = extractEarliestInnings(team1ScoreObject)
+        val team2First = extractEarliestInnings(team2ScoreObject)
+        val innings = listOfNotNull(team1First, team2First).sortedBy { it.inningsId }
+        if (innings.size < 2) return null
+
+        val firstInnings = innings[0]
+        val secondInnings = innings[1]
+        if (secondInnings.inningsId < 2) return null
+
+        val ballsBowled = oversToBalls(secondInnings.overs) ?: return null
+        val totalBalls = maxOvers * 6
+        val ballsRemaining = totalBalls - ballsBowled
+        if (ballsRemaining <= 0) return null
+
+        val runsRequired = (firstInnings.runs + 1) - secondInnings.runs
+        if (runsRequired <= 0) return formatRate(0.0)
+
+        return formatRate(runsRequired * 6.0 / ballsRemaining)
+    }
+
+    private fun extractEarliestInnings(teamScoreObject: JSONObject?): ParsedInnings? {
+        if (teamScoreObject == null) return null
+
+        return buildList {
+            val keys = teamScoreObject.keys()
+            while (keys.hasNext()) {
+                val key = keys.next()
+                val inningsObject = teamScoreObject.optJSONObject(key) ?: continue
+                add(
+                    ParsedInnings(
+                        inningsId = inningsObject.optInt("inningsId", Int.MAX_VALUE),
+                        runs = inningsObject.optInt("runs", 0),
+                        overs = inningsObject.optDouble("overs", Double.NaN)
+                    )
+                )
+            }
+        }.minByOrNull { it.inningsId }
+    }
+
+    private fun oversToBalls(overs: Double): Int? {
+        if (overs.isNaN()) return null
+
+        val wholeOvers = overs.toInt()
+        val ballsPart = ((overs - wholeOvers) * 10).toInt()
+        return wholeOvers * 6 + ballsPart
+    }
+
+    private fun formatRate(value: Double): String =
+        String.format(Locale.US, "%.2f", value)
+
+    private data class ParsedInnings(
+        val inningsId: Int,
+        val runs: Int,
+        val overs: Double
+    )
 }

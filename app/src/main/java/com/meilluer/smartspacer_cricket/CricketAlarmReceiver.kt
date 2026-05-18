@@ -15,18 +15,36 @@ class CricketAlarmReceiver : BroadcastReceiver() {
             return
         }
 
+        if (intent.action == CricketScheduler.ACTION_SET_DISMISS_FLAG) {
+            GlobalMatchVarsStore.setDismissFlag(context, true)
+            return
+        }
+
         val pendingResult = goAsync()
         CoroutineScope(Dispatchers.IO).launch {
             try {
                 val scraper = CricbuzzScraper()
                 val result = scraper.fetchLiveMatches()
-                if (result.matches.isNotEmpty()) {
-                    MatchCache.save(context, result.matches)
+                val favoriteTeams = AppSettings.getFavoriteTeams(context)
+                if (intent.action == CricketScheduler.ACTION_PREMATCH_CHECK) {
+                    GlobalMatchVarsStore.setDismissFlag(context, false)
+                    CricketScheduler.cancelDismissCountdown(context)
                 }
+                val matchesToUse = if (result.matches.isNotEmpty()) {
+                    MatchCache.save(context, result.matches)
+                    result.matches
+                } else {
+                    MatchCache.load(context)
+                }
+                GlobalMatchVarsStore.update(
+                    context = context,
+                    match = TrackedMatchSelector.selectPrimaryMatch(matchesToUse, favoriteTeams),
+                    favoriteTeams = favoriteTeams
+                )
                 CricketScheduler.rebuildSchedules(
                     context = context,
-                    matches = if (result.matches.isNotEmpty()) result.matches else MatchCache.load(context),
-                    favoriteTeams = AppSettings.getFavoriteTeams(context),
+                    matches = matchesToUse,
+                    favoriteTeams = favoriteTeams,
                     intervalMinutes = AppSettings.getRefreshIntervalMinutes(context)
                 )
             } finally {

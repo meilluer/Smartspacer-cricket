@@ -33,7 +33,9 @@
             <intent-filter>
                 <action android:name="android.intent.action.BOOT_COMPLETED" />
                 <action android:name="com.meilluer.smartspacer_cricket.action.DAILY_CHECK" />
+                <action android:name="com.meilluer.smartspacer_cricket.action.PREMATCH_CHECK" />
                 <action android:name="com.meilluer.smartspacer_cricket.action.LIVE_POLL" />
+                <action android:name="com.meilluer.smartspacer_cricket.action.SET_DISMISS_FLAG" />
             </intent-filter>
         </receiver>
 

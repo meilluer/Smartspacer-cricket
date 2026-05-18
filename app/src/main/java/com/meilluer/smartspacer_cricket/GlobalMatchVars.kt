@@ -1,6 +1,7 @@
 package com.meilluer.smartspacer_cricket
 
 import android.content.Context
+import com.kieronquinn.app.smartspacer.sdk.provider.SmartspacerTargetProvider
 
 var home_team: String = ""
 var away_team: String = ""
@@ -102,6 +103,8 @@ object GlobalMatchVarsStore {
             .putString(KEY_RR, RR)
             .putBoolean(KEY_DISMISS_FLAG, dismiss_flag)
             .apply()
+
+        SmartspacerTargetProvider.notifyChange(context, Target::class.java, smartspacerId = "notify")
     }
 
     fun setDismissFlag(context: Context, value: Boolean) {
@@ -110,5 +113,6 @@ object GlobalMatchVarsStore {
             .edit()
             .putBoolean(KEY_DISMISS_FLAG, dismiss_flag)
             .apply()
+        SmartspacerTargetProvider.notifyChange(context, Target::class.java, smartspacerId = "notify")
     }
 }

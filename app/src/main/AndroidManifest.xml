@@ -25,12 +25,21 @@
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
         </activity>
-
+<provider
+    android:authorities="${applicationId}.target.CricketAlarmReceiver"
+    android:name=".MainActivity"
+    android:exported="true"
+    android:permission="com.kieronquinn.app.smartspacer.permission.ACCESS_SMARTSPACER_TARGETS">
+        <intent-filter>
+            <action android:name="com.kieronquinn.app.smartspacer.TARGET" />
+        </intent-filter>
+</provider>
         <receiver
             android:name=".CricketAlarmReceiver"
             android:enabled="true"
             android:exported="true">
             <intent-filter>
+                
                 <action android:name="android.intent.action.BOOT_COMPLETED" />
                 <action android:name="com.meilluer.smartspacer_cricket.action.DAILY_CHECK" />
                 <action android:name="com.meilluer.smartspacer_cricket.action.PREMATCH_CHECK" />

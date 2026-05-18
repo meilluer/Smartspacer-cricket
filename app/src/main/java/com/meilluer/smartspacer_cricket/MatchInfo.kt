@@ -7,5 +7,6 @@ data class MatchInfo(
     val team2Score: String? = null,
     val overs: String? = null,
     val runRate: String? = null,
-    val status: String? = null
+    val status: String? = null,
+    val matchDetails: String? = null
 )

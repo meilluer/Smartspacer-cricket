@@ -9,6 +9,7 @@ import androidx.recyclerview.widget.RecyclerView
 class MatchAdapter(private var matches: List<MatchInfo>) : RecyclerView.Adapter<MatchAdapter.MatchViewHolder>() {
 
     class MatchViewHolder(view: View) : RecyclerView.ViewHolder(view) {
+        val tvMatchDetails: TextView = view.findViewById(R.id.tvMatchDetails)
         val tvTeam1: TextView = view.findViewById(R.id.tvTeam1)
         val tvTeam1Score: TextView = view.findViewById(R.id.tvTeam1Score)
         val tvTeam2: TextView = view.findViewById(R.id.tvTeam2)
@@ -25,6 +26,8 @@ class MatchAdapter(private var matches: List<MatchInfo>) : RecyclerView.Adapter<
 
     override fun onBindViewHolder(holder: MatchViewHolder, position: Int) {
         val match = matches[position]
+        holder.tvMatchDetails.text = match.matchDetails ?: ""
+        holder.tvMatchDetails.visibility = if (match.matchDetails.isNullOrBlank()) View.GONE else View.VISIBLE
         holder.tvTeam1.text = match.team1
         holder.tvTeam1Score.text = match.team1Score ?: ""
         holder.tvTeam2.text = match.team2

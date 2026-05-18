@@ -1,8 +1,12 @@
 package com.meilluer.smartspacer_cricket
 
+import android.content.Context
+import android.net.ConnectivityManager
+import android.net.NetworkCapabilities
 import android.os.Bundle
 import android.view.Menu
 import android.view.MenuItem
+import android.view.View
 import android.widget.TextView
 import android.widget.Toast
 import androidx.appcompat.app.AlertDialog
@@ -29,6 +33,7 @@ class MainActivity : AppCompatActivity() {
     private lateinit var swipeRefresh: SwipeRefreshLayout
     private lateinit var fabFavorites: FloatingActionButton
     private lateinit var tvLastUpdated: TextView
+    private lateinit var tvEmptyState: TextView
     private lateinit var toolbar: Toolbar
     
     private val scraper = CricbuzzScraper()
@@ -55,6 +60,7 @@ class MainActivity : AppCompatActivity() {
         swipeRefresh = findViewById(R.id.swipeRefresh)
         fabFavorites = findViewById(R.id.fabFavorites)
         tvLastUpdated = findViewById(R.id.tvLastUpdated)
+        tvEmptyState = findViewById(R.id.tvEmptyState)
 
         adapter = MatchAdapter(listOf())
         recyclerView.layoutManager = LinearLayoutManager(this)
@@ -95,13 +101,21 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun refreshMatches() {
+        if (!isNetworkAvailable()) {
+            allMatches = emptyList()
+            updateDisplay("No internet connection. Connect to the internet and pull to refresh.")
+            updateTimestamp()
+            swipeRefresh.isRefreshing = false
+            return
+        }
+
         swipeRefresh.setRefreshing(true)
         lifecycleScope.launch {
-            val matches = withContext(Dispatchers.IO) {
+            val result = withContext(Dispatchers.IO) {
                 scraper.fetchLiveMatches()
             }
-            allMatches = matches
-            updateDisplay()
+            allMatches = result.matches
+            updateDisplay(result.errorMessage)
             updateTimestamp()
             swipeRefresh.setRefreshing(false)
         }
@@ -113,11 +127,20 @@ class MainActivity : AppCompatActivity() {
         tvLastUpdated.text = "Last Updated: $currentTime (Every $refreshIntervalMinutes min)"
     }
 
-    private fun updateDisplay() {
+    private fun updateDisplay(message: String? = null) {
         val sortedMatches = allMatches.sortedByDescending { match ->
             favoriteTeams.contains(match.team1) || favoriteTeams.contains(match.team2)
         }
         adapter.updateMatches(sortedMatches)
+
+        if (sortedMatches.isEmpty()) {
+            recyclerView.visibility = View.GONE
+            tvEmptyState.visibility = View.VISIBLE
+            tvEmptyState.text = message ?: "No Cricbuzz matches are available right now."
+        } else {
+            recyclerView.visibility = View.VISIBLE
+            tvEmptyState.visibility = View.GONE
+        }
     }
 
     private fun showIntervalSelectionDialog() {
@@ -182,5 +205,14 @@ class MainActivity : AppCompatActivity() {
         val sharedPref = getSharedPreferences("settings", MODE_PRIVATE)
         favoriteTeams = sharedPref.getStringSet("favorite_teams", mutableSetOf())?.toMutableSet() ?: mutableSetOf()
         refreshIntervalMinutes = sharedPref.getInt("refresh_interval", 5)
+    }
+
+    private fun isNetworkAvailable(): Boolean {
+        val connectivityManager = getSystemService(Context.CONNECTIVITY_SERVICE) as ConnectivityManager
+        val network = connectivityManager.activeNetwork ?: return false
+        val capabilities = connectivityManager.getNetworkCapabilities(network) ?: return false
+
+        return capabilities.hasCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET) &&
+            capabilities.hasCapability(NetworkCapabilities.NET_CAPABILITY_VALIDATED)
     }
 }

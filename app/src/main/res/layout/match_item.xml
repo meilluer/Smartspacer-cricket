@@ -14,13 +14,25 @@
         android:padding="16dp">
 
         <TextView
+            android:id="@+id/tvMatchDetails"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:textColor="@android:color/darker_gray"
+            android:textSize="12sp"
+            app:layout_constraintEnd_toEndOf="parent"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintTop_toTopOf="parent"
+            tools:text="Indian Premier League 2026 • 63rd Match" />
+
+        <TextView
             android:id="@+id/tvTeam1"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
+            android:layout_marginTop="8dp"
             android:textStyle="bold"
             android:textSize="18sp"
             app:layout_constraintStart_toStartOf="parent"
-            app:layout_constraintTop_toTopOf="parent"
+            app:layout_constraintTop_toBottomOf="@id/tvMatchDetails"
             tools:text="IND" />
 
         <TextView

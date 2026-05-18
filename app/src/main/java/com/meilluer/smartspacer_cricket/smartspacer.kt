@@ -20,7 +20,7 @@ class Target: SmartspacerTargetProvider() {
             TargetTemplate.Basic(
                 id = "notify",
                 componentName = ComponentName(context!!, Target::class.java),
-                title = Text("$home_team $home_score $home_overs $away_overs $away_score $away_team"),
+                title = Text("$home_team $home_score ( $home_overs ) - $away_score ( $away_overs ) $away_team"),
                 subtitle = Text(status),
                 icon = Icon(AndroidIcon.createWithResource(context, R.drawable.cricket_icon_icons_com_53564__1_)),
             ).create()
@@ -37,7 +37,7 @@ class Target: SmartspacerTargetProvider() {
     }
 
     override fun onDismiss(smartspacerId: String, targetId: String): Boolean {
-        GlobalMatchVarsStore.setDismissFlag(context!!, true)
+        GlobalMatchVarsStore.setDismissFlag(context!!, false)
         notifyChange()
         return true
     }

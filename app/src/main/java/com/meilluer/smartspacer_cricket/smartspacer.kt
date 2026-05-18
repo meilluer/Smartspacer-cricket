@@ -1,8 +1,11 @@
 package com.meilluer.smartspacer_cricket
 
 import android.content.ComponentName
+import android.content.Intent
+import android.net.Uri
 import com.kieronquinn.app.smartspacer.sdk.model.SmartspaceTarget
 import com.kieronquinn.app.smartspacer.sdk.model.uitemplatedata.Icon
+import com.kieronquinn.app.smartspacer.sdk.model.uitemplatedata.TapAction
 import com.kieronquinn.app.smartspacer.sdk.model.uitemplatedata.Text
 import com.kieronquinn.app.smartspacer.sdk.provider.SmartspacerTargetProvider
 import com.kieronquinn.app.smartspacer.sdk.utils.TargetTemplate
@@ -34,7 +37,13 @@ if(second_innings==true){
                 componentName = ComponentName(context!!, Target::class.java),
                 title = Text("$home_team $home_score ( $home_overs ) - $away_score ( $away_overs ) $away_team"),
                 subtitle = Text(subtitle),
-                icon = Icon(AndroidIcon.createWithResource(context, R.drawable.cricket_icon_icons_com_53564__1_)),
+                icon = Icon(AndroidIcon.createWithResource(context, R.drawable.cricket_icon_icons_com_53564__1_),shouldTint=false),
+                onClick = TapAction(intent = Intent(
+                    Intent.ACTION_VIEW,
+                    Uri.parse(
+                        "https://www.google.com/search?q=" +
+                                Uri.encode("$home_team vs $away_team")
+                    )))
             ).create()
         )
         return targets

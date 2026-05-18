@@ -48,6 +48,9 @@ signingConfig = signingConfigs.getByName("release")
 }
 
 dependencies {
+
+    implementation("com.kieronquinn.smartspacer:sdk-plugin:1.1")//smartspacer dependency
+
     implementation(libs.androidx.core.ktx)
     implementation(libs.androidx.appcompat)
     implementation(libs.material)

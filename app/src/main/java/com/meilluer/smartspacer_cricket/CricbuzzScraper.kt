@@ -79,10 +79,11 @@ class CricbuzzScraper {
         val score = matchObject.optJSONObject("matchScore")
         val team1Info = info.optJSONObject("team1") ?: return null
         val team2Info = info.optJSONObject("team2") ?: return null
+        val matchId = info.optLong("matchId", -1L)
 
         val team1 = team1Info.optString("teamSName").ifBlank { team1Info.optString("teamName") }
         val team2 = team2Info.optString("teamSName").ifBlank { team2Info.optString("teamName") }
-        if (team1.isBlank() || team2.isBlank()) return null
+        if (matchId <= 0 || team1.isBlank() || team2.isBlank()) return null
 
         val team1ScoreObject = score?.optJSONObject("team1Score")
         val team2ScoreObject = score?.optJSONObject("team2Score")
@@ -112,8 +113,11 @@ class CricbuzzScraper {
         val matchDesc = info.optString("matchDesc").ifBlank { null }
         val seriesName = info.optString("seriesName").ifBlank { null }
         val matchDetails = listOfNotNull(seriesName, matchDesc).joinToString(" • ").ifBlank { null }
+        val matchState = info.optString("state").ifBlank { info.optString("stateTitle") }.ifBlank { null }
+        val startTimeMillis = info.optLong("startDate", -1L).takeIf { it > 0L }
 
         return MatchInfo(
+            matchId = matchId,
             team1 = team1,
             team2 = team2,
             team1Score = team1Score,
@@ -121,7 +125,9 @@ class CricbuzzScraper {
             overs = activeOvers,
             runRate = runRate,
             status = status,
-            matchDetails = matchDetails
+            matchDetails = matchDetails,
+            matchState = matchState,
+            startTimeMillis = startTimeMillis
         )
     }
 

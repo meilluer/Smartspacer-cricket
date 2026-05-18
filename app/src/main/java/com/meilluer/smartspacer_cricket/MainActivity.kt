@@ -1,9 +1,14 @@
 package com.meilluer.smartspacer_cricket
 
+import android.app.AlarmManager
 import android.content.Context
+import android.content.Intent
 import android.net.ConnectivityManager
 import android.net.NetworkCapabilities
+import android.net.Uri
+import android.os.Build
 import android.os.Bundle
+import android.provider.Settings
 import android.view.Menu
 import android.view.MenuItem
 import android.view.View
@@ -49,6 +54,10 @@ class MainActivity : AppCompatActivity() {
 
         loadSettings()
         setupUI()
+        allMatches = MatchCache.load(this)
+        updateDisplay("Fetching Cricbuzz scores...")
+        maybeRequestExactAlarmPermission()
+        CricketScheduler.initialize(this, allMatches)
         startPeriodicRefresh()
     }
 
@@ -115,6 +124,15 @@ class MainActivity : AppCompatActivity() {
                 scraper.fetchLiveMatches()
             }
             allMatches = result.matches
+            if (result.matches.isNotEmpty()) {
+                MatchCache.save(this@MainActivity, result.matches)
+            }
+            CricketScheduler.rebuildSchedules(
+                context = this@MainActivity,
+                matches = if (result.matches.isNotEmpty()) result.matches else MatchCache.load(this@MainActivity),
+                favoriteTeams = favoriteTeams,
+                intervalMinutes = refreshIntervalMinutes
+            )
             updateDisplay(result.errorMessage)
             updateTimestamp()
             swipeRefresh.setRefreshing(false)
@@ -187,24 +205,20 @@ class MainActivity : AppCompatActivity() {
             .setPositiveButton("OK") { _, _ ->
                 saveSettings()
                 updateDisplay()
+                CricketScheduler.initialize(this, allMatches)
             }
             .setNegativeButton("Cancel", null)
             .show()
     }
 
     private fun saveSettings() {
-        val sharedPref = getSharedPreferences("settings", MODE_PRIVATE)
-        with(sharedPref.edit()) {
-            putStringSet("favorite_teams", favoriteTeams)
-            putInt("refresh_interval", refreshIntervalMinutes)
-            apply()
-        }
+        AppSettings.setFavoriteTeams(this, favoriteTeams)
+        AppSettings.setRefreshIntervalMinutes(this, refreshIntervalMinutes)
     }
 
     private fun loadSettings() {
-        val sharedPref = getSharedPreferences("settings", MODE_PRIVATE)
-        favoriteTeams = sharedPref.getStringSet("favorite_teams", mutableSetOf())?.toMutableSet() ?: mutableSetOf()
-        refreshIntervalMinutes = sharedPref.getInt("refresh_interval", 5)
+        favoriteTeams = AppSettings.getFavoriteTeams(this).toMutableSet()
+        refreshIntervalMinutes = AppSettings.getRefreshIntervalMinutes(this)
     }
 
     private fun isNetworkAvailable(): Boolean {
@@ -214,5 +228,24 @@ class MainActivity : AppCompatActivity() {
 
         return capabilities.hasCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET) &&
             capabilities.hasCapability(NetworkCapabilities.NET_CAPABILITY_VALIDATED)
+    }
+
+    private fun maybeRequestExactAlarmPermission() {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.S) return
+
+        val alarmManager = getSystemService(AlarmManager::class.java)
+        if (alarmManager.canScheduleExactAlarms()) return
+
+        AlertDialog.Builder(this)
+            .setTitle("Allow exact alarms")
+            .setMessage("Enable exact alarms so the app can check Cricbuzz at 8:00 AM, 10 minutes before followed matches, and at your chosen live refresh interval.")
+            .setPositiveButton("Allow") { _, _ ->
+                val intent = Intent(Settings.ACTION_REQUEST_SCHEDULE_EXACT_ALARM).apply {
+                    data = Uri.parse("package:$packageName")
+                }
+                startActivity(intent)
+            }
+            .setNegativeButton("Not now", null)
+            .show()
     }
 }

@@ -127,11 +127,13 @@ class MainActivity : AppCompatActivity() {
             }
             allMatches = result.matches
             val matchesForScheduling = if (result.matches.isNotEmpty()) {
-                MatchCache.save(this@MainActivity, result.matches)
-                result.matches
+                TrackedMatchEnricher.enrich(result.matches, favoriteTeams, scraper).also {
+                    MatchCache.save(this@MainActivity, it)
+                }
             } else {
                 MatchCache.load(this@MainActivity)
             }
+            allMatches = matchesForScheduling
             syncGlobalMatchVars(matchesForScheduling)
             CricketScheduler.rebuildSchedules(
                 context = this@MainActivity,

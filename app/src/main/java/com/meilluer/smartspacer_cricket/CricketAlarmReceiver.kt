@@ -22,6 +22,11 @@ class CricketAlarmReceiver : BroadcastReceiver() {
             return
         }
 
+        if (intent.action == CricketScheduler.ACTION_RESET_WICKET_FLAG) {
+            GlobalMatchVarsStore.setWicketFlag(context, false)
+            return
+        }
+
         val pendingResult = goAsync()
         CoroutineScope(Dispatchers.IO).launch {
             try {
@@ -33,8 +38,9 @@ class CricketAlarmReceiver : BroadcastReceiver() {
                     CricketScheduler.cancelDismissCountdown(context)
                 }
                 val matchesToUse = if (result.matches.isNotEmpty()) {
-                    MatchCache.save(context, result.matches)
-                    result.matches
+                    TrackedMatchEnricher.enrich(result.matches, favoriteTeams, scraper).also {
+                        MatchCache.save(context, it)
+                    }
                 } else {
                     MatchCache.load(context)
                 }

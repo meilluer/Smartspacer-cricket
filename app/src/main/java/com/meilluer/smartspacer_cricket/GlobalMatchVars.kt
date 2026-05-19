@@ -12,8 +12,13 @@ var away_overs: String = ""
 var status: String = ""
 var CRR: String = ""
 var RR: String = ""
+var wicket_info: String = ""
 var second_innings: Boolean = false
+var isFinished: Boolean = false
 var dismiss_flag: Boolean = false
+var wicket_flag: Boolean = false
+var last_wicket_count: Int = 0
+var last_match_id: Long = -1L
 
 object GlobalMatchVarsStore {
     private const val PREFS_NAME = "global_match_vars"
@@ -26,8 +31,13 @@ object GlobalMatchVarsStore {
     private const val KEY_STATUS = "status"
     private const val KEY_CRR = "crr"
     private const val KEY_RR = "rr"
+    private const val KEY_WICKET_INFO = "wicket_info"
     private const val KEY_SECOND_INNINGS = "second_innings"
+    private const val KEY_IS_FINISHED = "is_finished"
     private const val KEY_DISMISS_FLAG = "dismiss_flag"
+    private const val KEY_WICKET_FLAG = "wicket_flag"
+    private const val KEY_LAST_WICKET_COUNT = "last_wicket_count"
+    private const val KEY_LAST_MATCH_ID = "last_match_id"
 
     fun hydrate(context: Context) {
         val prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
@@ -40,14 +50,26 @@ object GlobalMatchVarsStore {
         status = prefs.getString(KEY_STATUS, "").orEmpty()
         CRR = prefs.getString(KEY_CRR, "").orEmpty()
         RR = prefs.getString(KEY_RR, "").orEmpty()
+        wicket_info = prefs.getString(KEY_WICKET_INFO, "").orEmpty()
         second_innings = prefs.getBoolean(KEY_SECOND_INNINGS, false)
+        isFinished = prefs.getBoolean(KEY_IS_FINISHED, false)
         dismiss_flag = prefs.getBoolean(KEY_DISMISS_FLAG, false)
+        wicket_flag = prefs.getBoolean(KEY_WICKET_FLAG, false)
+        last_wicket_count = prefs.getInt(KEY_LAST_WICKET_COUNT, 0)
+        last_match_id = prefs.getLong(KEY_LAST_MATCH_ID, -1L)
     }
 
     fun update(context: Context, match: MatchInfo?, favoriteTeams: Set<String>) {
         if (match == null) {
-            setValues(context, "", "", "", "", "", "", "", "", "", false)
+            last_match_id = -1L
+            last_wicket_count = 0
+            setValues(context, "", "", "", "", "", "", "", "", "", "", false, false)
             return
+        }
+
+        if (match.matchId != last_match_id) {
+            last_match_id = match.matchId
+            last_wicket_count = extractWickets(match.team1Score) + extractWickets(match.team2Score)
         }
 
         val followedTeam = when {
@@ -57,6 +79,14 @@ object GlobalMatchVarsStore {
         }
 
         val followedIsTeam1 = followedTeam == match.team1
+
+        val currentWickets = extractWickets(match.team1Score) + extractWickets(match.team2Score)
+        if (currentWickets > last_wicket_count && last_wicket_count != 0) {
+            setWicketFlag(context, true)
+            CricketScheduler.scheduleWicketFlagReset(context)
+        }
+        last_wicket_count = currentWickets
+
         setValues(
             context = context,
             newHomeTeam = followedTeam,
@@ -68,8 +98,16 @@ object GlobalMatchVarsStore {
             newStatus = match.status.orEmpty(),
             newCRR = match.crr.orEmpty(),
             newRR = match.rr.orEmpty(),
-            newSecondInnings = match.second_innings
+            newWicketInfo = match.wicketInfo.orEmpty(),
+            newSecondInnings = match.second_innings,
+            newIsFinished = match.isFinished
         )
+    }
+
+    private fun extractWickets(score: String?): Int {
+        if (score == null) return 0
+        val regex = """/(\d+)""".toRegex()
+        return regex.findAll(score).sumOf { it.groupValues[1].toInt() }
     }
 
     private fun setValues(
@@ -83,7 +121,9 @@ object GlobalMatchVarsStore {
         newStatus: String,
         newCRR: String,
         newRR: String,
-        newSecondInnings: Boolean
+        newWicketInfo: String,
+        newSecondInnings: Boolean,
+        newIsFinished: Boolean
     ) {
         home_team = newHomeTeam
         away_team = newAwayTeam
@@ -94,7 +134,9 @@ object GlobalMatchVarsStore {
         status = newStatus
         CRR = newCRR
         RR = newRR
+        wicket_info = newWicketInfo
         second_innings = newSecondInnings
+        isFinished = newIsFinished
 
         context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
             .edit()
@@ -107,8 +149,13 @@ object GlobalMatchVarsStore {
             .putString(KEY_STATUS, status)
             .putString(KEY_CRR, CRR)
             .putString(KEY_RR, RR)
+            .putString(KEY_WICKET_INFO, wicket_info)
             .putBoolean(KEY_SECOND_INNINGS, second_innings)
+            .putBoolean(KEY_IS_FINISHED, isFinished)
             .putBoolean(KEY_DISMISS_FLAG, dismiss_flag)
+            .putBoolean(KEY_WICKET_FLAG, wicket_flag)
+            .putInt(KEY_LAST_WICKET_COUNT, last_wicket_count)
+            .putLong(KEY_LAST_MATCH_ID, last_match_id)
             .apply()
 
         SmartspacerTargetProvider.notifyChange(context, Target::class.java, smartspacerId = "notify")
@@ -119,6 +166,15 @@ object GlobalMatchVarsStore {
         context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
             .edit()
             .putBoolean(KEY_DISMISS_FLAG, dismiss_flag)
+            .apply()
+        SmartspacerTargetProvider.notifyChange(context, Target::class.java, smartspacerId = "notify")
+    }
+
+    fun setWicketFlag(context: Context, value: Boolean) {
+        wicket_flag = value
+        context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+            .edit()
+            .putBoolean(KEY_WICKET_FLAG, wicket_flag)
             .apply()
         SmartspacerTargetProvider.notifyChange(context, Target::class.java, smartspacerId = "notify")
     }

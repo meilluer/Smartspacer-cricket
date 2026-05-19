@@ -1,5 +1,6 @@
 package com.meilluer.smartspacer_cricket
 
+import org.jsoup.Jsoup
 import okhttp3.OkHttpClient
 import okhttp3.Request
 import org.json.JSONArray
@@ -69,13 +70,13 @@ class CricbuzzScraper {
         for (index in 0 until matchesArray.length()) {
             val item = matchesArray.optJSONObject(index) ?: continue
             val matchObject = item.optJSONObject("match") ?: continue
-            parseMatch(matchObject)?.let(matches::add)
+            parseMatch(matchObject, normalizedHtml)?.let(matches::add)
         }
 
         return matches
     }
 
-    private fun parseMatch(matchObject: JSONObject): MatchInfo? {
+    private fun parseMatch(matchObject: JSONObject, normalizedHtml: String): MatchInfo? {
         val info = matchObject.optJSONObject("matchInfo") ?: return null
         val score = matchObject.optJSONObject("matchScore")
         val team1Info = info.optJSONObject("team1") ?: return null
@@ -94,6 +95,11 @@ class CricbuzzScraper {
         val currentBatTeamId = info.optInt("currBatTeamId", -1)
         val team1Id = team1Info.optInt("teamId", -1)
         val team2Id = team2Info.optInt("teamId", -1)
+        val currentInningsId = when (currentBatTeamId) {
+            team1Id -> extractLatestInnings(team1ScoreObject)?.inningsId
+            team2Id -> extractLatestInnings(team2ScoreObject)?.inningsId
+            else -> null
+        }
         val team1Overs = team1ScoreObject?.let(::extractLatestOvers)
         val team2Overs = team2ScoreObject?.let(::extractLatestOvers)
         val activeOvers = when (currentBatTeamId) {
@@ -118,16 +124,20 @@ class CricbuzzScraper {
         val startTimeMillis = info.optLong("startDate", -1L).takeIf { it > 0L }
         val crr = calculateCurrentRunRate(currentBatTeamId, team1Id, team2Id, team1ScoreObject, team2ScoreObject)
         val rr = calculateRequiredRunRate(info, team1ScoreObject, team2ScoreObject)
+        val scorecardPath = extractScorecardPath(normalizedHtml, matchId)
         
         val secondInningsStarted = hasSecondInningsStarted(team1ScoreObject, team2ScoreObject)
+        val normalizedStatus = status?.lowercase().orEmpty()
         val isFinished = matchState?.lowercase()?.contains("complete") == true ||
-                status?.lowercase()?.contains("won") == true ||
+                (normalizedStatus.contains("won") && !normalizedStatus.contains("won the toss")) ||
                 matchState?.lowercase()?.contains("abandoned") == true
 
         return MatchInfo(
             matchId = matchId,
             team1 = team1,
             team2 = team2,
+            team1Id = team1Id.takeIf { it > 0 },
+            team2Id = team2Id.takeIf { it > 0 },
             team1Score = team1Score,
             team2Score = team2Score,
             team1Overs = team1Overs,
@@ -138,9 +148,13 @@ class CricbuzzScraper {
             matchDetails = matchDetails,
             matchState = matchState,
             startTimeMillis = startTimeMillis,
+            currentBatTeamId = currentBatTeamId.takeIf { it > 0 },
+            currentInningsId = currentInningsId,
+            scorecardPath = scorecardPath,
             crr = crr,
             rr = rr,
-            second_innings = secondInningsStarted && !isFinished
+            second_innings = secondInningsStarted && !isFinished,
+            isFinished = isFinished
         )
     }
 
@@ -214,6 +228,96 @@ class CricbuzzScraper {
         }
 
         return null
+    }
+
+    fun enrichWithWicketInfo(match: MatchInfo): MatchInfo {
+        val currentBatTeamId = match.currentBatTeamId ?: return match
+        val currentInningsId = match.currentInningsId ?: return match
+        val scorecardPath = match.scorecardPath ?: return match
+
+        return try {
+            val request = Request.Builder()
+                .url("https://www.cricbuzz.com$scorecardPath")
+                .header("User-Agent", userAgent)
+                .header("Accept", "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8")
+                .build()
+
+            client.newCall(request).execute().use { response ->
+                if (!response.isSuccessful) return match
+                val html = response.body?.string().orEmpty()
+                val wicketInfo = parseLatestWicketInfo(html, currentBatTeamId, currentInningsId)
+                match.copy(wicketInfo = wicketInfo)
+            }
+        } catch (_: Exception) {
+            match
+        }
+    }
+
+    private fun parseLatestWicketInfo(
+        html: String,
+        currentBatTeamId: Int,
+        currentInningsId: Int
+    ): String? {
+        val document = Jsoup.parse(html)
+        val inningsSection = document.selectFirst("#scard-team-$currentBatTeamId-innings-$currentInningsId") ?: return null
+
+        val fowRows = inningsSection.select("div.grid.scorecard-fow-grid")
+            .filter { row -> row.selectFirst("a") != null && row.select("div").size >= 2 }
+        val latestWicketRow = fowRows.lastOrNull() ?: return null
+        val batterName = latestWicketRow.selectFirst("a")?.text()?.trim().orEmpty()
+        if (batterName.isBlank()) return null
+
+        val dismissalRows = inningsSection.select("div.grid.scorecard-bat-grid")
+            .mapNotNull { row ->
+                val batterLink = row.selectFirst("a[title^=View Profile Of]") ?: return@mapNotNull null
+                val dismissalText = row.selectFirst("div.text-cbTxtSec")?.text()?.trim().orEmpty()
+                batterLink.text().trim() to dismissalText
+            }
+
+        val dismissalText = dismissalRows.lastOrNull { it.first == batterName }?.second.orEmpty()
+        if (dismissalText.isBlank() || dismissalText.equals("not out", ignoreCase = true)) return null
+
+        return formatWicketInfo(batterName, dismissalText)
+    }
+
+    private fun formatWicketInfo(batterName: String, dismissalText: String): String {
+        val cleanText = dismissalText.trim()
+        val caughtAndBowled = Regex("""^c and b (.+)$""", RegexOption.IGNORE_CASE).matchEntire(cleanText)
+        if (caughtAndBowled != null) {
+            return "$batterName out! c & b. ${caughtAndBowled.groupValues[1].trim()}"
+        }
+
+        val caught = Regex("""^c (.+) b (.+)$""", RegexOption.IGNORE_CASE).matchEntire(cleanText)
+        if (caught != null) {
+            val catcher = caught.groupValues[1].trim()
+            val bowler = caught.groupValues[2].trim()
+            return "$batterName out! b. $bowler + c. $catcher"
+        }
+
+        val stumped = Regex("""^st (.+) b (.+)$""", RegexOption.IGNORE_CASE).matchEntire(cleanText)
+        if (stumped != null) {
+            val keeper = stumped.groupValues[1].trim()
+            val bowler = stumped.groupValues[2].trim()
+            return "$batterName out! b. $bowler + st. $keeper"
+        }
+
+        val lbw = Regex("""^lbw b (.+)$""", RegexOption.IGNORE_CASE).matchEntire(cleanText)
+        if (lbw != null) {
+            return "$batterName out! lbw b. ${lbw.groupValues[1].trim()}"
+        }
+
+        val bowled = Regex("""^b (.+)$""", RegexOption.IGNORE_CASE).matchEntire(cleanText)
+        if (bowled != null) {
+            return "$batterName out! b. ${bowled.groupValues[1].trim()}"
+        }
+
+        return "$batterName out! $cleanText"
+    }
+
+    private fun extractScorecardPath(normalizedHtml: String, matchId: Long): String? {
+        val regex = Regex("""/live-cricket-scores/$matchId/([^"?#]+)""")
+        val match = regex.find(normalizedHtml) ?: return null
+        return "/live-cricket-scorecard/$matchId/${match.groupValues[1]}"
     }
 
     private fun formatTeamScore(teamScoreObject: JSONObject): String? {

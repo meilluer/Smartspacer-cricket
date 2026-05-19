@@ -17,34 +17,33 @@ class Target: SmartspacerTargetProvider() {
         val homeOversVal = home_overs.toDoubleOrNull() ?: 0.0
         val awayOversVal = away_overs.toDoubleOrNull() ?: 0.0
 
+        var formattedHomeOvers = ""
         if(home_overs!=""){
-
-            home_overs="( $home_overs )"
-
+            formattedHomeOvers="( $home_overs )"
             if(home_overs.endsWith(".6")){
                 val wholeOvers = home_overs.substringBefore(".").toInt()
-                home_overs = "${wholeOvers + 1}.0"
+                formattedHomeOvers = "( ${wholeOvers + 1}.0 )"
             }
         }
-        else if (away_overs!=""){
-            
-            away_overs="( $away_overs )"
 
+        var formattedAwayOvers = ""
+        if (away_overs!=""){
+            formattedAwayOvers="( $away_overs )"
             if(away_overs.endsWith(".6")){
                 val wholeOvers = away_overs.substringBefore(".").toInt()
-                away_overs = "${wholeOvers + 1}.0"
+                formattedAwayOvers = "( ${wholeOvers + 1}.0 )"
             }
         }
 
         var subtitle = status
-        if (!second_innings && (homeOversVal >= 2.0 || awayOversVal >= 2.0)) {
+        if (wicket_flag && wicket_info.isNotBlank()) {
+            subtitle = wicket_info
+        } else if (!isFinished && !second_innings && (homeOversVal >= 2.0 || awayOversVal >= 2.0)) {
             if (CRR.isNotBlank()) {
                 subtitle = "CRR: $CRR"
             }
         }
-if(second_innings==true){
-    subtitle = status
-}
+
         if (dismiss_flag) {
             return emptyList()
         }
@@ -54,7 +53,7 @@ if(second_innings==true){
             TargetTemplate.Basic(
                 id = "notify",
                 componentName = ComponentName(context!!, Target::class.java),
-                title = Text("$home_team $home_score $home_overs  - $away_score $away_overs $away_team"),
+                title = Text("$home_team $home_score $formattedHomeOvers  - $away_score $formattedAwayOvers $away_team"),
                 subtitle = Text(subtitle),
                 icon = Icon(AndroidIcon.createWithResource(context, R.drawable.cricket_icon_icons_com_53564__1_),shouldTint=false),
                 onClick = TapAction(intent = Intent(
@@ -77,7 +76,7 @@ if(second_innings==true){
     }
 
     override fun onDismiss(smartspacerId: String, targetId: String): Boolean {
-        GlobalMatchVarsStore.setDismissFlag(context!!, true)
+        GlobalMatchVarsStore.setDismissFlag(context!!, false)
         notifyChange()
         return true
     }

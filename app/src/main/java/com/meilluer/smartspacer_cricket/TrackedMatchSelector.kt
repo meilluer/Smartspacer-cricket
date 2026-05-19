@@ -47,6 +47,8 @@ object TrackedMatchSelector {
     fun isFinished(match: MatchInfo): Boolean {
         val statusText = match.status.orEmpty().lowercase()
         val state = match.matchState.orEmpty().lowercase()
-        return state.contains("complete") || state.contains("stumps") || statusText.contains("won")
+        return state.contains("complete") ||
+            state.contains("stumps") ||
+            (statusText.contains("won") && !statusText.contains("won the toss"))
     }
 }

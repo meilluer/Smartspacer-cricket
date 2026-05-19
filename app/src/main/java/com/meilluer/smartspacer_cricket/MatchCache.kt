@@ -20,6 +20,8 @@ object MatchCache {
                     put("matchId", match.matchId)
                     put("team1", match.team1)
                     put("team2", match.team2)
+                    put("team1Id", match.team1Id)
+                    put("team2Id", match.team2Id)
                     put("team1Score", match.team1Score)
                     put("team2Score", match.team2Score)
                     put("team1Overs", match.team1Overs)
@@ -30,9 +32,14 @@ object MatchCache {
                     put("matchDetails", match.matchDetails)
                     put("matchState", match.matchState)
                     put("startTimeMillis", match.startTimeMillis)
+                    put("currentBatTeamId", match.currentBatTeamId)
+                    put("currentInningsId", match.currentInningsId)
+                    put("scorecardPath", match.scorecardPath)
+                    put("wicketInfo", match.wicketInfo)
                     put("crr", match.crr)
                     put("rr", match.rr)
                     put("second_innings", match.second_innings)
+                    put("isFinished", match.isFinished)
                 }
             )
         }
@@ -55,6 +62,8 @@ object MatchCache {
                     matchId = item.optLong("matchId", -1L),
                     team1 = item.optString("team1"),
                     team2 = item.optString("team2"),
+                    team1Id = item.optInt("team1Id", -1).takeIf { it > 0 },
+                    team2Id = item.optInt("team2Id", -1).takeIf { it > 0 },
                     team1Score = item.optString("team1Score").ifBlank { null },
                     team2Score = item.optString("team2Score").ifBlank { null },
                     team1Overs = item.optString("team1Overs").ifBlank { null },
@@ -65,9 +74,14 @@ object MatchCache {
                     matchDetails = item.optString("matchDetails").ifBlank { null },
                     matchState = item.optString("matchState").ifBlank { null },
                     startTimeMillis = item.optLong("startTimeMillis", -1L).takeIf { it > 0L },
+                    currentBatTeamId = item.optInt("currentBatTeamId", -1).takeIf { it > 0 },
+                    currentInningsId = item.optInt("currentInningsId", -1).takeIf { it > 0 },
+                    scorecardPath = item.optString("scorecardPath").ifBlank { null },
+                    wicketInfo = item.optString("wicketInfo").ifBlank { null },
                     crr = item.optString("crr").ifBlank { null },
                     rr = item.optString("rr").ifBlank { null },
-                    second_innings = item.optBoolean("second_innings", false)
+                    second_innings = item.optBoolean("second_innings", false),
+                    isFinished = item.optBoolean("isFinished", false)
                 )
             )
         }

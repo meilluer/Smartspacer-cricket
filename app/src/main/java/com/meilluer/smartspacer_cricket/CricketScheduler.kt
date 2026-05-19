@@ -12,13 +12,16 @@ object CricketScheduler {
     const val ACTION_PREMATCH_CHECK = "com.meilluer.smartspacer_cricket.action.PREMATCH_CHECK"
     const val ACTION_LIVE_POLL = "com.meilluer.smartspacer_cricket.action.LIVE_POLL"
     const val ACTION_SET_DISMISS_FLAG = "com.meilluer.smartspacer_cricket.action.SET_DISMISS_FLAG"
+    const val ACTION_RESET_WICKET_FLAG = "com.meilluer.smartspacer_cricket.action.RESET_WICKET_FLAG"
 
     private const val REQUEST_CODE_DAILY = 1001
     private const val REQUEST_CODE_LIVE = 1002
     private const val REQUEST_CODE_DISMISS = 1003
+    private const val REQUEST_CODE_WICKET = 1004
     private const val PREMATCH_REQUEST_CODE_OFFSET = 200000
     private const val TEN_MINUTES_MS = 10 * 60 * 1000L
     private const val THIRTY_MINUTES_MS = 30 * 60 * 1000L
+    private const val TWO_MINUTES_MS = 2 * 60 * 1000L
 
     fun initialize(context: Context, matches: List<MatchInfo> = MatchCache.load(context)) {
         scheduleDailyCheck(context)
@@ -191,6 +194,15 @@ object CricketScheduler {
                 requestCode = REQUEST_CODE_DISMISS,
                 action = ACTION_SET_DISMISS_FLAG
             )
+        )
+    }
+
+    fun scheduleWicketFlagReset(context: Context) {
+        scheduleExactAlarm(
+            context = context,
+            triggerAtMillis = System.currentTimeMillis() + TWO_MINUTES_MS,
+            requestCode = REQUEST_CODE_WICKET,
+            action = ACTION_RESET_WICKET_FLAG
         )
     }
 

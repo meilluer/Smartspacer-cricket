@@ -14,6 +14,7 @@ import android.graphics.drawable.Icon as AndroidIcon
 
 class Target: SmartspacerTargetProvider() {
     override fun getSmartspaceTargets(smartspacerId: String): List<SmartspaceTarget> {
+        GlobalMatchVarsStore.hydrate(context!!)
         val homeOversVal = home_overs.toDoubleOrNull() ?: 0.0
         val awayOversVal = away_overs.toDoubleOrNull() ?: 0.0
 
@@ -71,12 +72,12 @@ class Target: SmartspacerTargetProvider() {
         return Config(
             label = "Smartspacer cricket",
             description = "Display scores of cricket matches from Cricbuzz.",
-            icon = android.graphics.drawable.Icon.createWithResource(context, R.drawable.cricket_icon_icons_com_53564__1_),
+            icon = android.graphics.drawable.Icon.createWithResource(context, R.drawable.cricket_icon_icons_com_53564__1_).setTint(0),
         )
     }
 
     override fun onDismiss(smartspacerId: String, targetId: String): Boolean {
-        GlobalMatchVarsStore.setDismissFlag(context!!, false)
+        GlobalMatchVarsStore.setDismissFlag(context!!, true)
         notifyChange()
         return true
     }

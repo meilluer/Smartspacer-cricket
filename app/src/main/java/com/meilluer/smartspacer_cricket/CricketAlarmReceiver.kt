@@ -10,6 +10,8 @@ import kotlinx.coroutines.launch
 class CricketAlarmReceiver : BroadcastReceiver() {
 
     override fun onReceive(context: Context, intent: Intent) {
+        GlobalMatchVarsStore.hydrate(context)
+        
         if (intent.action == Intent.ACTION_BOOT_COMPLETED) {
             CricketScheduler.initialize(context)
             return

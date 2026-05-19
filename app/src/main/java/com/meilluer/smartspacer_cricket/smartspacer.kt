@@ -16,7 +16,26 @@ class Target: SmartspacerTargetProvider() {
     override fun getSmartspaceTargets(smartspacerId: String): List<SmartspaceTarget> {
         val homeOversVal = home_overs.toDoubleOrNull() ?: 0.0
         val awayOversVal = away_overs.toDoubleOrNull() ?: 0.0
-        
+
+        if(home_overs!=""){
+
+            home_overs="( $home_overs )"
+
+            if(home_overs.endsWith(".6")){
+                val wholeOvers = home_overs.substringBefore(".").toInt()
+                home_overs = "${wholeOvers + 1}.0"
+            }
+        }
+        else if (away_overs!=""){
+            
+            away_overs="( $away_overs )"
+
+            if(away_overs.endsWith(".6")){
+                val wholeOvers = away_overs.substringBefore(".").toInt()
+                away_overs = "${wholeOvers + 1}.0"
+            }
+        }
+
         var subtitle = status
         if (!second_innings && (homeOversVal >= 2.0 || awayOversVal >= 2.0)) {
             if (CRR.isNotBlank()) {
@@ -35,7 +54,7 @@ if(second_innings==true){
             TargetTemplate.Basic(
                 id = "notify",
                 componentName = ComponentName(context!!, Target::class.java),
-                title = Text("$home_team $home_score ( $home_overs ) - $away_score ( $away_overs ) $away_team"),
+                title = Text("$home_team $home_score $home_overs  - $away_score $away_overs $away_team"),
                 subtitle = Text(subtitle),
                 icon = Icon(AndroidIcon.createWithResource(context, R.drawable.cricket_icon_icons_com_53564__1_),shouldTint=false),
                 onClick = TapAction(intent = Intent(
@@ -58,7 +77,7 @@ if(second_innings==true){
     }
 
     override fun onDismiss(smartspacerId: String, targetId: String): Boolean {
-        GlobalMatchVarsStore.setDismissFlag(context!!, false)
+        GlobalMatchVarsStore.setDismissFlag(context!!, true)
         notifyChange()
         return true
     }

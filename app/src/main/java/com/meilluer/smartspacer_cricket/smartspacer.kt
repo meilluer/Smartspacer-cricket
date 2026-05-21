@@ -72,7 +72,7 @@ class Target: SmartspacerTargetProvider() {
         return Config(
             label = "Smartspacer cricket",
             description = "Display scores of cricket matches from Cricbuzz.",
-            icon = android.graphics.drawable.Icon.createWithResource(context, R.drawable.cricket_icon_icons_com_53564__1_).setTint(0),
+            icon = android.graphics.drawable.Icon.createWithResource(context, R.drawable.smartspcaer_icon),
         )
     }
 

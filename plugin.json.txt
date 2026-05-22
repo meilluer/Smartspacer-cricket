@@ -1,0 +1,6 @@
+{
+  "description": "Display scores of your followed cricket teams as available on cricbuzz , you must wait till your team shows on app and must add it by clicking on star icon on bottom right 8 AM ",
+  "download_url": "https://github.com/meilluer/Smartspacer-cricket/releases/download/v1.0/app-release.apk",
+  "version_code": 1,
+  "screenshots": ["https://github.com/meilluer/Smartspacer-cricket/blob/main/screenshots/photo_2026-05-22_11-50-14.jpg", "https://github.com/meilluer/Smartspacer-cricket/blob/main/screenshots/photo_2026-05-22_11-50-20.jpg","https://github.com/meilluer/Smartspacer-cricket/blob/main/screenshots/photo_2026-05-22_11-50-23.jpg"]
+}
